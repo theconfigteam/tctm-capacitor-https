@@ -1,5 +1,6 @@
 package co.uk.theconfigteam.tctm.capacitor.https;
 
+import android.net.Uri;
 import android.net.http.SslError;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceRequest;
@@ -7,6 +8,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeWebViewClient;
+import com.getcapacitor.Logger;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
@@ -14,6 +16,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.HashMap;
 import java.util.Objects;
 
 import javax.net.ssl.HostnameVerifier;
@@ -69,7 +72,6 @@ public class TCTMHttpsPlugin extends Plugin {
             }
         }
 
-
         String[] backendPaths = this.getConfig().getArray("backendPaths", new String[]{});
 
         this.bridge.setWebViewClient(new BridgeWebViewClient(this.bridge) {
@@ -88,6 +90,19 @@ public class TCTMHttpsPlugin extends Plugin {
                         return null;
 
                 return super.shouldInterceptRequest(view, request);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if(request.getUrl().getHost().equalsIgnoreCase(Uri.parse(bridge.getScheme() + "://" + bridge.getHost()).getHost())
+                   && request.getUrl().getBooleanQueryParameter("ssoLoginDone", false)
+                ){
+                    //when we bounce back from SSO login, we need to load the URL again so the shouldInterceptRequest is called again
+                    //and the data is loaded from the local server
+                    view.loadUrl(request.getUrl().toString());
+                    return false;
+                }
+                return super.shouldOverrideUrlLoading(view, request);
             }
         });
     }
